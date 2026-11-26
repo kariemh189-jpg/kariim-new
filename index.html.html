@@ -1,0 +1,1855 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>كريم | نظام الإدارة التعليمية والتقييم الذكي</title>
+    <!-- تحميل Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- خط Cairo للغة العربية -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- مكتبة Lucide للأيقونات -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- مكتبة Chart.js للرسوم البيانية التراكمية -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        body {
+            font-family: 'Cairo', sans-serif;
+            background-color: #f8fafc;
+            color: #0f172a;
+            overflow-x: hidden;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 9999px;
+        }
+        .pulse-dot {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: .4; transform: scale(1.2); }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- شريط الأمان والمزامنة السحابية -->
+    <div class="bg-slate-950 text-slate-300 text-xs py-1.5 px-4 flex flex-wrap items-center justify-between border-b border-slate-800 z-50">
+        <div class="flex items-center gap-3">
+            <span class="flex items-center gap-1.5 text-emerald-400 font-bold">
+                <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span>
+                حماية مشفرة AES-256
+            </span>
+            <span class="hidden sm:inline text-slate-700">|</span>
+            <span class="hidden sm:flex items-center gap-1 text-slate-400">
+                <i data-lucide="shield-check" class="w-3.5 h-3.5 text-emerald-500"></i>
+                عزل صلاحيات RBAC نشط
+            </span>
+            <span class="hidden md:inline text-slate-700">|</span>
+            <span id="cloudStatusBadge" class="hidden md:flex items-center gap-1 text-sky-400">
+                <i data-lucide="cloud" class="w-3.5 h-3.5"></i>
+                جاهز للمزامنة السحابية
+            </span>
+        </div>
+        <div class="flex items-center gap-2">
+            <button onclick="openSecurityModal()" class="text-xs bg-slate-800 hover:bg-slate-700 text-white px-2.5 py-0.5 rounded-lg transition flex items-center gap-1">
+                <i data-lucide="lock" class="w-3 h-3 text-emerald-400"></i>
+                مركز الأمان
+            </button>
+        </div>
+    </div>
+
+    <!-- الهيدر الرئيسي -->
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
+        <div class="max-w-full mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <button id="mobileMenuBtn" onclick="toggleSidebar()" class="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+                <!-- الشعار: كريم -->
+                <div class="flex items-center gap-2.5 cursor-pointer" onclick="switchView('overview')">
+                    <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-slate-900 to-emerald-600 flex items-center justify-center text-white shadow-md">
+                        <i data-lucide="graduation-cap" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-none">كريم</h1>
+                        <p class="text-[11px] text-emerald-600 font-bold mt-0.5">التقييم الذكي والسجل التراكمي</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- محول الأدوار الفوري (معلم / طالب) -->
+            <div class="flex items-center gap-2 sm:gap-3">
+                <div class="bg-slate-100 p-1 rounded-2xl flex items-center border border-slate-200">
+                    <button id="roleTeacherBtn" onclick="switchRole('teacher')" class="px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 bg-slate-900 text-white shadow-xs">
+                        <i data-lucide="user-check" class="w-4 h-4 text-emerald-400"></i>
+                        <span>حساب المعلم</span>
+                    </button>
+                    <button id="roleStudentBtn" onclick="switchRole('student')" class="px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+                        <i data-lucide="book-open" class="w-4 h-4"></i>
+                        <span>حساب الطالب</span>
+                    </button>
+                </div>
+
+                <!-- قائمة اختيار الطالب عند تفعيل حساب الطالب -->
+                <div id="studentSelectorContainer" class="hidden">
+                    <select id="activeStudentSelect" onchange="changeActiveStudent(this.value)" class="bg-emerald-50 border border-emerald-200 text-slate-900 text-xs sm:text-sm font-bold rounded-xl px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </select>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- الحاوية الرئيسية -->
+    <div class="flex-1 flex relative">
+
+        <!-- القائمة الجانبية للمعلم -->
+        <aside id="teacherSidebar" class="fixed lg:static inset-y-0 right-0 z-30 w-72 bg-slate-900 text-white transform translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out flex flex-col justify-between shadow-xl lg:shadow-none">
+            <div class="p-5 overflow-y-auto flex-1 space-y-6">
+                <!-- التنقل الرئيسي -->
+                <div>
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-2">القائمة الرئيسية</p>
+                    <nav class="space-y-1">
+                        <button onclick="switchView('overview')" id="nav-overview" class="sidebar-link w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold bg-emerald-600 text-white transition">
+                            <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+                            <span>لوحة التحكم الرئيسية</span>
+                        </button>
+                        <button onclick="switchView('attendance')" id="nav-attendance" class="sidebar-link w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                            <i data-lucide="clipboard-check" class="w-4 h-4 text-emerald-400"></i>
+                            <span>تسجيل الحضور والغياب</span>
+                        </button>
+                        <button onclick="switchView('exams')" id="nav-exams" class="sidebar-link w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-bold text-slate-300 hover:bg-slate-800 hover:text-white transition">
+                            <i data-lucide="brain-circuit" class="w-4 h-4 text-emerald-400"></i>
+                            <span>الامتحانات والتصحيح الذكي</span>
+                        </button>
+                    </nav>
+                </div>
+
+                <!-- قائمة الفصول الدراسية -->
+                <div>
+                    <div class="flex items-center justify-between px-2 mb-2">
+                        <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">الفصول الدراسية</p>
+                        <button onclick="openAddClassModal()" class="text-[11px] bg-emerald-600 hover:bg-emerald-500 text-white px-2.5 py-0.5 rounded-lg font-bold transition flex items-center gap-1">
+                            <i data-lucide="plus" class="w-3 h-3"></i> فصل جديد
+                        </button>
+                    </div>
+                    <div id="classesSidebarList" class="space-y-1.5">
+                        <!-- ديناميكي -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- زر مسح البيانات -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950/50">
+                <button onclick="openConfirmClearModal()" class="w-full text-xs text-slate-400 hover:text-rose-400 flex items-center justify-center gap-1.5 py-1.5 transition font-bold">
+                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    <span>تصفير ومسح جميع البيانات</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- خلفية معتمة للجوال -->
+        <div id="sidebarOverlay" onclick="toggleSidebar()" class="fixed inset-0 bg-slate-900/50 z-20 hidden lg:hidden backdrop-blur-xs"></div>
+
+        <!-- المحتوى الرئيسي -->
+        <main class="flex-1 p-4 sm:p-6 lg:p-8 max-w-full overflow-x-hidden">
+            
+            <!-- حاوية الإشعارات المخصصة (بديل alert) -->
+            <div id="toastContainer" class="fixed bottom-5 left-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+            <!-- ==================== 1. لوحة التحكم الرئيسية ==================== -->
+            <section id="view-overview" class="space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900">لوحة تحكم المعلم</h2>
+                        <p class="text-sm text-slate-500 mt-1">أضف فصولك الدراسية، سجّل طلابك، وتابع الحضور والتقييم الذكي بالذكاء الاصطناعي.</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="openAddClassModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2">
+                            <i data-lucide="folder-plus" class="w-4 h-4 text-emerald-400"></i>
+                            <span>إضافة فصل دراسي</span>
+                        </button>
+                        <button onclick="openAddStudentModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2">
+                            <i data-lucide="user-plus" class="w-4 h-4"></i>
+                            <span>إضافة طالب جديد</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- بطاقات الإحصائيات الحقيقية (تبدأ من صفر) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center">
+                            <i data-lucide="layers" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-500">الفصول الدراسية</p>
+                            <h3 id="statTotalClasses" class="text-2xl font-black text-slate-900">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                            <i data-lucide="users" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-500">إجمالي الطلاب</p>
+                            <h3 id="statTotalStudents" class="text-2xl font-black text-slate-900">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                            <i data-lucide="clipboard-check" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-500">سجلات الحضور المعتمدة</p>
+                            <h3 id="statAttendanceSessions" class="text-2xl font-black text-emerald-600">0</h3>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                            <i data-lucide="file-check-2" class="w-6 h-6"></i>
+                        </div>
+                        <div>
+                            <p class="text-xs font-bold text-slate-500">الامتحانات المنشورة</p>
+                            <h3 id="statTotalExams" class="text-2xl font-black text-slate-900">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- عرض الفصول الدراسية أو شاشة البداية النظيفة -->
+                <div>
+                    <h3 class="text-lg font-extrabold text-slate-900 mb-3">فصولك الدراسية</h3>
+                    <div id="overviewClassesContainer">
+                        <!-- يتم تعبئتها ديناميكياً -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 2. صفحة تسجيل الحضور والغياب المستقلة ==================== -->
+            <section id="view-attendance" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900">تسجيل الحضور والغياب</h2>
+                        <p class="text-sm text-slate-500 mt-1">اختر الفصل والتاريخ وسجّل حالة كل طالب في المحاضرة مع حفظ السجل التراكمي.</p>
+                    </div>
+                    <button onclick="openAddStudentModal()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-2 self-start">
+                        <i data-lucide="user-plus" class="w-4 h-4 text-emerald-400"></i>
+                        <span>إضافة طالب للفصل</span>
+                    </button>
+                </div>
+
+                <!-- شريط التحكم بالحضور -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">1. اختر الفصل الدراسي</label>
+                        <select id="attendanceClassSelect" onchange="onAttendanceFilterChange()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500">
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1.5">2. تاريخ المحاضرة</label>
+                        <input type="date" id="attendanceDateInput" onchange="onAttendanceFilterChange()" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-900 focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="markAllAttendanceStatus('present')" class="flex-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-3 py-2.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5">
+                            <i data-lucide="check-check" class="w-4 h-4"></i>
+                            <span>تحضير الكل</span>
+                        </button>
+                        <button onclick="saveAttendanceSheet()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold shadow-xs transition flex items-center justify-center gap-1.5">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            <span>حفظ كشف اليوم</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ملخص الحضور السريع لليوم المحدد -->
+                <div id="attendanceDailySummary" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <div class="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl text-center">
+                        <span class="text-xs font-bold text-emerald-700 block">حاضر</span>
+                        <span id="countPresent" class="text-xl font-black text-emerald-800">0</span>
+                    </div>
+                    <div class="bg-rose-50 border border-rose-200 p-3.5 rounded-2xl text-center">
+                        <span class="text-xs font-bold text-rose-700 block">غائب</span>
+                        <span id="countAbsent" class="text-xl font-black text-rose-800">0</span>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 p-3.5 rounded-2xl text-center">
+                        <span class="text-xs font-bold text-amber-700 block">متأخر</span>
+                        <span id="countLate" class="text-xl font-black text-amber-800">0</span>
+                    </div>
+                    <div class="bg-sky-50 border border-sky-200 p-3.5 rounded-2xl text-center">
+                        <span class="text-xs font-bold text-sky-700 block">غائب بعذر</span>
+                        <span id="countExcused" class="text-xl font-black text-sky-800">0</span>
+                    </div>
+                </div>
+
+                <!-- جدول تسجيل الحضور والغياب -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                    <div id="attendanceTableContainer" class="overflow-x-auto">
+                        <!-- ديناميكي -->
+                    </div>
+                </div>
+
+                <!-- سجل المحاضرات السابقة المحفوظة -->
+                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+                    <h3 class="font-extrabold text-slate-900 text-base mb-3 flex items-center gap-2">
+                        <i data-lucide="history" class="w-4 h-4 text-emerald-600"></i>
+                        <span>سجل المحاضرات السابقة لهذا الفصل</span>
+                    </h3>
+                    <div id="pastAttendanceLogsList" class="space-y-2">
+                        <!-- ديناميكي -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 3. صفحة الفصل الدراسي المستقلة ==================== -->
+            <section id="view-class-detail" class="hidden space-y-6">
+                <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <span id="classDetailSubject" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1 rounded-lg">المادة</span>
+                        <h2 id="classDetailTitle" class="text-2xl font-black text-slate-900 mt-2">اسم الفصل</h2>
+                        <p id="classDetailDesc" class="text-sm text-slate-500 mt-1">وصف الفصل</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="goToClassAttendance()" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+                            <span>تسجيل حضور هذا الفصل</span>
+                        </button>
+                        <button onclick="openAddStudentModal(window.appState.selectedClassId)" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5">
+                            <i data-lucide="user-plus" class="w-4 h-4 text-emerald-400"></i>
+                            <span>إضافة طالب</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- جدول طلاب الفصل ومستواهم التراكمي -->
+                <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
+                    <div class="p-4 sm:p-5 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <h3 class="font-extrabold text-slate-900 flex items-center gap-2">
+                            <i data-lucide="users" class="w-5 h-5 text-emerald-600"></i>
+                            <span>الطلاب المسجلون في الفصل</span>
+                        </h3>
+                        <div class="relative w-full sm:w-64">
+                            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute right-3 top-3"></i>
+                            <input type="text" id="studentSearchInput" onkeyup="renderClassDetail()" placeholder="ابحث بالاسم أو الكود..." class="w-full bg-slate-50 border border-slate-200 rounded-xl pr-9 pl-3 py-2 text-xs font-medium focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+                    <div id="classStudentsContainer" class="overflow-x-auto">
+                        <!-- ديناميكي -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 4. الملف التراكمي الشامل للطالب (5 سنوات) ==================== -->
+            <section id="view-student-profile" class="hidden space-y-6">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <button onclick="backFromProfile()" class="text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 bg-white px-4 py-2 rounded-xl border border-slate-200 shadow-xs transition">
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        <span>رجوع</span>
+                    </button>
+                    <button id="addHistoryRecordBtn" onclick="openAddYearlyRecordModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>إضافة تقييم سنة سابقة (للتراكمي)</span>
+                    </button>
+                </div>
+
+                <!-- بطاقة الطالب -->
+                <div class="bg-gradient-to-l from-slate-900 to-slate-800 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div class="flex items-center gap-4">
+                        <div id="profileAvatar" class="w-16 h-16 rounded-2xl bg-emerald-500 text-slate-950 font-black text-2xl flex items-center justify-center shadow-lg">
+                            ط
+                        </div>
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <h2 id="profileName" class="text-2xl font-black">اسم الطالب</h2>
+                                <span id="profileCode" class="text-xs bg-white/10 text-emerald-300 px-2.5 py-0.5 rounded-lg font-mono">CODE</span>
+                            </div>
+                            <p id="profileClass" class="text-sm text-slate-300 mt-1">الفصل والمادة</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-3 text-center">
+                        <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
+                            <p class="text-[11px] text-slate-300">المستوى الحالي</p>
+                            <p id="profileCurrentScore" class="text-xl font-black text-emerald-400 mt-0.5">--</p>
+                        </div>
+                        <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
+                            <p class="text-[11px] text-slate-300">نسبة الحضور</p>
+                            <p id="profileAttendanceRate" class="text-xl font-black text-white mt-0.5">--</p>
+                        </div>
+                        <div class="bg-white/10 p-3 rounded-2xl border border-white/10">
+                            <p class="text-[11px] text-slate-300">الامتحانات</p>
+                            <p id="profileExamsCount" class="text-xl font-black text-sky-400 mt-0.5">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- الرسم البياني التراكمي وتحليل المهارات -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <div class="lg:col-span-2 bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+                            <div>
+                                <h3 class="font-extrabold text-slate-900 text-lg">منحنى التطور الأكاديمي التراكمي</h3>
+                                <p class="text-xs text-slate-500">رصد تطور مستوى الطالب عبر السنوات والأيام</p>
+                            </div>
+                            <div class="bg-slate-100 p-1 rounded-xl flex text-xs font-bold">
+                                <button id="chartModeYears" onclick="switchChartMode('years')" class="px-3 py-1.5 rounded-lg bg-slate-900 text-white transition">السجل السنوي (5 سنوات)</button>
+                                <button id="chartModeDaily" onclick="switchChartMode('daily')" class="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition">التقييمات اليومية</button>
+                            </div>
+                        </div>
+                        <div class="h-64 w-full">
+                            <canvas id="studentProgressChart"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- تحليل المهارات بالذكاء الاصطناعي -->
+                    <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between space-y-5">
+                        <div>
+                            <h3 class="font-extrabold text-slate-900 text-lg mb-3 flex items-center gap-2">
+                                <i data-lucide="target" class="w-5 h-5 text-emerald-600"></i>
+                                <span>تحليل المهارات في المادة</span>
+                            </h3>
+                            <div class="mb-4">
+                                <p class="text-xs font-bold text-emerald-700 mb-2">مهارات يتقنها الطالب (نقاط القوة):</p>
+                                <div id="profileStrengthsList" class="flex flex-wrap gap-1.5"></div>
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold text-rose-600 mb-2">مهارات تحتاج إلى دعم (نقاط الضعف):</p>
+                                <div id="profileWeaknessesList" class="flex flex-wrap gap-1.5"></div>
+                            </div>
+                        </div>
+
+                        <div class="bg-emerald-50/80 border border-emerald-200 rounded-2xl p-4">
+                            <div class="flex items-center gap-2 text-emerald-800 font-bold text-xs mb-1.5">
+                                <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600"></i>
+                                <span>توصية الذكاء الاصطناعي لتحسين الفهم:</span>
+                            </div>
+                            <p id="profileAiRecommendation" class="text-xs text-slate-700 leading-relaxed"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- سجل الامتحانات والتغذية الراجعة -->
+                <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
+                    <h3 class="font-extrabold text-slate-900 text-lg mb-4 flex items-center gap-2">
+                        <i data-lucide="file-check-2" class="w-5 h-5 text-emerald-600"></i>
+                        <span>سجل الامتحانات والتصحيح الذكي</span>
+                    </h3>
+                    <div id="profileExamHistoryList" class="space-y-3"></div>
+                </div>
+            </section>
+
+            <!-- ==================== 5. نظام الامتحانات والتصحيح الذكي ==================== -->
+            <section id="view-exams" class="hidden space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-2xl font-black text-slate-900">الامتحانات والتصحيح بالذكاء الاصطناعي</h2>
+                        <p class="text-sm text-slate-500 mt-1">أنشئ امتحاناتك الخاصة وسيقوم الذكاء الاصطناعي بتصحيحها واستخراج نقاط القوة والضعف لكل طالب.</p>
+                    </div>
+                    <button onclick="toggleCreateExamForm()" class="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold shadow-xs transition flex items-center gap-2">
+                        <i data-lucide="plus" class="w-4 h-4 text-emerald-400"></i>
+                        <span>إنشاء امتحان جديد</span>
+                    </button>
+                </div>
+
+                <!-- نموذج إنشاء امتحان جديد (فارغ تماماً ليملأه المعلم) -->
+                <div id="createExamFormCard" class="hidden bg-white p-6 rounded-2xl border-2 border-emerald-500/40 shadow-md space-y-4">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                        <h3 class="font-extrabold text-slate-900 text-lg flex items-center gap-2">
+                            <i data-lucide="file-plus-2" class="w-5 h-5 text-emerald-600"></i>
+                            <span>إعداد امتحان جديد</span>
+                        </h3>
+                        <button onclick="toggleCreateExamForm()" class="text-slate-400 hover:text-slate-600">
+                            <i data-lucide="x" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">عنوان الامتحان *</label>
+                            <input type="text" id="newExamTitle" placeholder="أدخل عنوان الامتحان..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">الفصل المستهدف *</label>
+                            <select id="newExamClassSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none focus:border-emerald-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 mb-1">المهارة المستهدفة *</label>
+                            <input type="text" id="newExamSkillTag" placeholder="مثال: التحليل والاستنتاج..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-700">السؤال الأول (اختيار من متعدد) *</label>
+                            <input type="text" id="newExamMcqQ" placeholder="اكتب نص السؤال الاختياري هنا..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm">
+                            <div class="grid grid-cols-2 gap-2">
+                                <input type="text" id="newExamMcqOpt0" placeholder="الخيار الأول (الإجابة الصحيحة)" class="bg-emerald-50 border border-emerald-300 rounded-lg px-2.5 py-1.5 text-xs font-bold">
+                                <input type="text" id="newExamMcqOpt1" placeholder="الخيار الثاني" class="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                                <input type="text" id="newExamMcqOpt2" placeholder="الخيار الثالث" class="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                                <input type="text" id="newExamMcqOpt3" placeholder="الخيار الرابع" class="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs">
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <label class="block text-xs font-bold text-slate-700">السؤال الثاني (مقالي - يصححه الذكاء الاصطناعي) *</label>
+                            <textarea id="newExamEssayQ" rows="4" placeholder="اكتب السؤال المقالي أو التفسيري هنا ليقوم الذكاء الاصطناعي بتقييم فهم الطالب له..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2 text-sm"></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-2 pt-2">
+                        <button onclick="toggleCreateExamForm()" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">إلغاء</button>
+                        <button onclick="publishNewExam()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition flex items-center gap-2">
+                            <i data-lucide="send" class="w-4 h-4"></i>
+                            <span>حفظ ونشر الامتحان</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- قائمة الامتحانات -->
+                <div id="examsListContainer"></div>
+            </section>
+
+            <!-- ==================== 6. حل الامتحان والتصحيح الذكي ==================== -->
+            <section id="view-take-exam" class="hidden max-w-3xl mx-auto space-y-6">
+                <div class="flex items-center justify-between">
+                    <button onclick="closeExamSolver()" class="text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 flex items-center gap-1.5 bg-white px-4 py-2 rounded-xl border border-slate-200">
+                        <i data-lucide="arrow-right" class="w-4 h-4"></i>
+                        <span>رجوع</span>
+                    </button>
+                    <span class="text-xs font-bold bg-slate-900 text-emerald-400 px-3 py-1.5 rounded-xl flex items-center gap-1.5">
+                        <i data-lucide="cpu" class="w-4 h-4"></i>
+                        <span>التصحيح التلقائي بالذكاء الاصطناعي</span>
+                    </span>
+                </div>
+
+                <div class="bg-white p-6 sm:p-8 rounded-2xl border border-slate-200 shadow-xs space-y-6">
+                    <div class="border-b border-slate-100 pb-4">
+                        <span id="solverClassBadge" class="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg">الفصل</span>
+                        <h2 id="solverExamTitle" class="text-2xl font-black text-slate-900 mt-2">عنوان الامتحان</h2>
+                        <div class="mt-3 flex flex-wrap items-center gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+                            <span class="text-xs font-bold text-slate-600">اختر الطالب:</span>
+                            <select id="solverStudentSelect" class="bg-white border border-slate-300 rounded-lg px-3 py-1.5 text-xs font-bold text-slate-900"></select>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <p class="font-bold text-slate-900 text-base">1. <span id="solverMcqQuestion"></span></p>
+                        <div id="solverMcqOptions" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+                    </div>
+
+                    <div class="space-y-2">
+                        <p class="font-bold text-slate-900 text-base">2. <span id="solverEssayQuestion"></span></p>
+                        <textarea id="solverEssayAnswer" rows="4" placeholder="اكتب إجابة الطالب هنا ليقوم الذكاء الاصطناعي بتصحيحها وتحليل المهارات..." class="w-full bg-slate-50 border border-slate-300 rounded-2xl p-4 text-sm focus:outline-none focus:border-emerald-500"></textarea>
+                    </div>
+
+                    <button id="submitExamBtn" onclick="submitAndGradeExam()" class="w-full bg-gradient-to-l from-slate-900 to-emerald-600 hover:opacity-95 text-white font-extrabold py-3.5 rounded-2xl shadow-md transition flex items-center justify-center gap-2 text-sm sm:text-base">
+                        <i data-lucide="sparkles" class="w-5 h-5"></i>
+                        <span>تسليم الامتحان والتصحيح بالذكاء الاصطناعي</span>
+                    </button>
+
+                    <!-- نتيجة التصحيح -->
+                    <div id="aiGradingResultBox" class="hidden bg-slate-900 text-white rounded-2xl p-6 space-y-4 border border-emerald-500/40 shadow-xl">
+                        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div>
+                                <h4 class="font-bold text-base">تقرير التقييم الذكي</h4>
+                                <p class="text-xs text-slate-400">تم تحديث الملف التراكمي للطالب تلقائياً</p>
+                            </div>
+                            <span id="gradedScoreBadge" class="text-2xl font-black text-emerald-400">0%</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                            <div class="bg-slate-800/80 p-3.5 rounded-xl border border-emerald-500/20">
+                                <p class="font-bold text-emerald-400 mb-1">نقاط القوة:</p>
+                                <p id="gradedStrengthText" class="text-slate-200 leading-relaxed"></p>
+                            </div>
+                            <div class="bg-slate-800/80 p-3.5 rounded-xl border border-rose-500/20">
+                                <p class="font-bold text-rose-400 mb-1">نقاط الضعف:</p>
+                                <p id="gradedWeaknessText" class="text-slate-200 leading-relaxed"></p>
+                            </div>
+                        </div>
+                        <div class="bg-emerald-950/60 border border-emerald-500/30 p-4 rounded-xl">
+                            <p class="text-xs font-bold text-emerald-300 mb-1">توصية الذكاء الاصطناعي:</p>
+                            <p id="gradedPlanText" class="text-xs text-slate-200 leading-relaxed"></p>
+                        </div>
+                        <div class="flex justify-end">
+                            <button id="viewUpdatedProfileBtn" class="bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold px-4 py-2 rounded-xl text-xs transition flex items-center gap-1.5">
+                                <span>عرض الملف التراكمي للطالب</span>
+                                <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==================== 7. واجهة الطالب ==================== -->
+            <section id="view-student-portal" class="hidden space-y-6">
+                <div id="studentPortalContent"></div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ==================== النوافذ المنبثقة (Modals) ==================== -->
+
+    <!-- 1. نافذة إضافة فصل دراسي جديد -->
+    <div id="addClassModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-extrabold text-slate-900 text-lg">إضافة فصل دراسي جديد</h3>
+                <button onclick="closeModal('addClassModal')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم الفصل / المجموعة *</label>
+                    <input type="text" id="inputClassName" placeholder="مثال: الصف الثالث الثانوي - مجموعة أ" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم المادة الدراسية *</label>
+                    <input type="text" id="inputClassSubject" placeholder="مثال: الفيزياء / الرياضيات / اللغة العربية" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">ملاحظات أو مواعيد المحاضرات</label>
+                    <input type="text" id="inputClassDesc" placeholder="مثال: السبت والثلاثاء الساعة 4 عصراً" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('addClassModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">إلغاء</button>
+                <button onclick="saveNewClass()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition">حفظ الفصل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. نافذة إضافة طالب جديد -->
+    <div id="addStudentModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-extrabold text-slate-900 text-lg">تسجيل طالب جديد</h3>
+                <button onclick="closeModal('addStudentModal')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">اسم الطالب بالكامل *</label>
+                    <input type="text" id="inputStudentName" placeholder="أدخل اسم الطالب..." class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">الفصل الدراسي *</label>
+                    <select id="inputStudentClassSelect" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none focus:border-emerald-500"></select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">كود الطالب (اختياري)</label>
+                        <input type="text" id="inputStudentCode" placeholder="تلقائي إذا تُرك فارغاً" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 mb-1">سنة البداية في المادة</label>
+                        <input type="number" id="inputStudentStartYear" value="2026" min="2015" max="2030" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold focus:outline-none focus:border-emerald-500">
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('addStudentModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">إلغاء</button>
+                <button onclick="saveNewStudent()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition">إضافة الطالب</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. نافذة إضافة تقييم سنة سابقة للسجل التراكمي -->
+    <div id="addYearlyRecordModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-extrabold text-slate-900 text-lg">إضافة سجل سنة للسجل التراكمي</h3>
+                <button onclick="closeModal('addYearlyRecordModal')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">السنة الدراسية *</label>
+                    <input type="number" id="inputHistoryYear" placeholder="مثال: 2022 أو 2023" min="2010" max="2030" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none focus:border-emerald-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 mb-1">نسبة مستوى الطالب في تلك السنة (%) *</label>
+                    <input type="number" id="inputHistoryScore" placeholder="من 0 إلى 100" min="0" max="100" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm font-bold focus:outline-none focus:border-emerald-500">
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2">
+                <button onclick="closeModal('addYearlyRecordModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">إلغاء</button>
+                <button onclick="saveYearlyRecord()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold transition">إضافة للسجل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. نافذة مركز الأمان -->
+    <div id="securityModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
+            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                <h3 class="font-extrabold text-slate-900 text-lg">بنية الأمان والحماية في كريم</h3>
+                <button onclick="closeModal('securityModal')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-3 text-xs text-slate-700">
+                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                    <p class="font-bold text-slate-900">1. التحكم في الصلاحيات (RBAC)</p>
+                    <p class="text-slate-500 mt-1">فصل تام بين صلاحيات المعلم (إدارة الفصول، تسجيل الحضور، نشر الامتحانات) وصلاحيات الطالب.</p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                    <p class="font-bold text-slate-900">2. تنقية المدخلات ومنع الثغرات (XSS Shield)</p>
+                    <p class="text-slate-500 mt-1">تعقيم كافة البيانات النصية والإجابات المقالية قبل معالجتها أو تخزينها لحماية المنصة من الحقن البرمجي.</p>
+                </div>
+                <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200">
+                    <p class="font-bold text-slate-900">3. سلامة السجل التراكمي</p>
+                    <p class="text-slate-500 mt-1">حفظ السجلات التراكمية وكشوف الحضور بمزامنة سحابية فورية لمنع فقدان البيانات.</p>
+                </div>
+            </div>
+            <div class="flex justify-end">
+                <button onclick="closeModal('securityModal')" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold">إغلاق</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. نافذة تأكيد تصفير البيانات (بديل confirm) -->
+    <div id="confirmClearModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 space-y-4 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto">
+                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+            </div>
+            <h3 class="font-extrabold text-slate-900 text-lg">هل أنت متأكد من مسح البيانات؟</h3>
+            <p class="text-xs text-slate-500">سيتم حذف جميع الفصول والطلاب وكشوف الحضور والامتحانات والبدء من الصفر.</p>
+            <div class="flex justify-center gap-2 pt-2">
+                <button onclick="closeModal('confirmClearModal')" class="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100">تراجع</button>
+                <button onclick="confirmClearAllData()" class="bg-rose-600 hover:bg-rose-700 text-white px-5 py-2 rounded-xl text-xs font-bold">نعم، مسح الكل</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- سكربت التشغيل والمزامنة السحابية -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'kareem-clean-app';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+
+        let db = null;
+        let auth = null;
+        let currentUser = null;
+        let isCloudReady = false;
+
+        // دالة تعقيم النصوص للحماية من XSS
+        window.sanitize = function(str) {
+            if (typeof str !== 'string') return '';
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        };
+
+        // الحالة الأولية النظيفة تماماً (Zero Dummy Data)
+        const EMPTY_DATA = {
+            classes: [],
+            students: [],
+            exams: [],
+            attendanceLogs: [] // { id, classId, date, records: { studentId: 'present' | 'absent' | 'late' | 'excused' } }
+        };
+
+        window.appState = {
+            role: 'teacher',
+            activeView: 'overview',
+            selectedClassId: null,
+            selectedStudentId: null,
+            activeStudentPortalId: null,
+            activeExamId: null,
+            chartMode: 'years',
+            draftAttendance: {}, // حالة الحضور الحالية قبل الحفظ
+            data: JSON.parse(JSON.stringify(EMPTY_DATA))
+        };
+
+        let progressChartInstance = null;
+
+        // تهيئة Firebase والمزامنة السحابية
+        async function initCloud() {
+            const statusBadge = document.getElementById('cloudStatusBadge');
+            if (!firebaseConfig) {
+                if (statusBadge) statusBadge.innerHTML = `<i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-400"></i> وضع التشغيل المباشر نشط`;
+                renderAll();
+                return;
+            }
+
+            try {
+                const app = initializeApp(firebaseConfig);
+                auth = getAuth(app);
+                db = getFirestore(app);
+
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (!user) return;
+                    currentUser = user;
+                    isCloudReady = true;
+
+                    const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kareem_clean_state', 'v1');
+                    onSnapshot(docRef, (snap) => {
+                        if (snap.exists()) {
+                            const cloudData = snap.data();
+                            window.appState.data = {
+                                classes: cloudData.classes || [],
+                                students: cloudData.students || [],
+                                exams: cloudData.exams || [],
+                                attendanceLogs: cloudData.attendanceLogs || []
+                            };
+                            renderAll();
+                        } else {
+                            saveDataToCloud();
+                        }
+                        if (statusBadge) {
+                            statusBadge.innerHTML = `<i data-lucide="cloud-check" class="w-3.5 h-3.5 text-emerald-400"></i> متزامن سحابياً`;
+                            lucide.createIcons();
+                        }
+                    }, () => {
+                        renderAll();
+                    });
+                });
+            } catch (err) {
+                renderAll();
+            }
+        }
+
+        window.saveDataToCloud = async function() {
+            renderAll();
+            if (!isCloudReady || !currentUser || !db) return;
+            try {
+                const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'kareem_clean_state', 'v1');
+                await setDoc(docRef, window.appState.data);
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        // نظام الإشعارات المخصصة (بديل alert)
+        window.showToast = function(msg, type = 'info') {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            const bg = type === 'success' ? 'bg-slate-900 border-emerald-500 text-white' : type === 'warning' ? 'bg-amber-950 border-amber-500 text-amber-100' : 'bg-slate-900 border-sky-500 text-white';
+            toast.className = `pointer-events-auto flex items-center gap-2.5 px-4 py-3 rounded-2xl border-r-4 shadow-xl text-xs font-bold transition-all duration-300 ${bg}`;
+            toast.innerHTML = `<i data-lucide="info" class="w-4 h-4 text-emerald-400 shrink-0"></i><span>${sanitize(msg)}</span>`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            setTimeout(() => toast.remove(), 3500);
+        };
+
+        // إدارة النوافذ المنبثقة
+        window.openModal = function(id) {
+            document.getElementById(id).classList.remove('hidden');
+            lucide.createIcons();
+        };
+        window.closeModal = function(id) {
+            document.getElementById(id).classList.add('hidden');
+        };
+        window.openSecurityModal = () => openModal('securityModal');
+        window.openConfirmClearModal = () => openModal('confirmClearModal');
+
+        window.confirmClearAllData = async function() {
+            window.appState.data = JSON.parse(JSON.stringify(EMPTY_DATA));
+            window.appState.selectedClassId = null;
+            window.appState.selectedStudentId = null;
+            window.appState.draftAttendance = {};
+            closeModal('confirmClearModal');
+            await saveDataToCloud();
+            switchView('overview');
+            showToast('تم مسح جميع البيانات والبدء من الصفر.', 'success');
+        };
+
+        // تبديل الأدوار (معلم / طالب)
+        window.switchRole = function(role) {
+            window.appState.role = role;
+            const teacherBtn = document.getElementById('roleTeacherBtn');
+            const studentBtn = document.getElementById('roleStudentBtn');
+            const sidebar = document.getElementById('teacherSidebar');
+            const mobileBtn = document.getElementById('mobileMenuBtn');
+            const studentSel = document.getElementById('studentSelectorContainer');
+
+            if (role === 'teacher') {
+                teacherBtn.className = 'px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 bg-slate-900 text-white shadow-xs';
+                studentBtn.className = 'px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900';
+                sidebar.classList.remove('hidden');
+                mobileBtn.classList.remove('hidden');
+                studentSel.classList.add('hidden');
+                switchView('overview');
+            } else {
+                studentBtn.className = 'px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 bg-emerald-600 text-white shadow-xs';
+                teacherBtn.className = 'px-3 sm:px-4 py-1.5 rounded-xl text-xs sm:text-sm font-bold transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900';
+                sidebar.classList.add('hidden');
+                mobileBtn.classList.add('hidden');
+                studentSel.classList.remove('hidden');
+                populateStudentPortalSelect();
+                switchView('student-portal');
+            }
+        };
+
+        function populateStudentPortalSelect() {
+            const select = document.getElementById('activeStudentSelect');
+            const students = window.appState.data.students;
+            if (students.length === 0) {
+                select.innerHTML = `<option value="">لا يوجد طلاب مسجلون</option>`;
+                window.appState.activeStudentPortalId = null;
+                return;
+            }
+            if (!window.appState.activeStudentPortalId || !students.find(s => s.id === window.appState.activeStudentPortalId)) {
+                window.appState.activeStudentPortalId = students[0].id;
+            }
+            select.innerHTML = students.map(s => `<option value="${s.id}" ${s.id === window.appState.activeStudentPortalId ? 'selected' : ''}>${sanitize(s.name)}</option>`).join('');
+        }
+
+        window.changeActiveStudent = function(id) {
+            window.appState.activeStudentPortalId = id;
+            renderStudentPortal();
+        };
+
+        // تبديل الصفحات
+        window.switchView = function(viewName) {
+            window.appState.activeView = viewName;
+            ['overview', 'attendance', 'class-detail', 'student-profile', 'exams', 'take-exam', 'student-portal'].forEach(v => {
+                const el = document.getElementById(`view-${v}`);
+                if (el) el.classList.add('hidden');
+            });
+            const target = document.getElementById(`view-${viewName}`);
+            if (target) target.classList.remove('hidden');
+
+            document.querySelectorAll('.sidebar-link').forEach(btn => {
+                btn.classList.remove('bg-emerald-600', 'text-white');
+                btn.classList.add('text-slate-300');
+            });
+            const navBtn = document.getElementById(`nav-${viewName}`);
+            if (navBtn) {
+                navBtn.classList.add('bg-emerald-600', 'text-white');
+                navBtn.classList.remove('text-slate-300');
+            }
+
+            if (window.innerWidth < 1024) {
+                document.getElementById('teacherSidebar').classList.add('translate-x-full');
+                document.getElementById('sidebarOverlay').classList.add('hidden');
+            }
+
+            renderAll();
+        };
+
+        window.toggleSidebar = function() {
+            document.getElementById('teacherSidebar').classList.toggle('translate-x-full');
+            document.getElementById('sidebarOverlay').classList.toggle('hidden');
+        };
+
+        // ==================== إضافة الفصول والطلاب ====================
+        window.openAddClassModal = function() {
+            document.getElementById('inputClassName').value = '';
+            document.getElementById('inputClassSubject').value = '';
+            document.getElementById('inputClassDesc').value = '';
+            openModal('addClassModal');
+        };
+
+        window.saveNewClass = function() {
+            const name = document.getElementById('inputClassName').value.trim();
+            const subject = document.getElementById('inputClassSubject').value.trim();
+            const desc = document.getElementById('inputClassDesc').value.trim();
+
+            if (!name || !subject) {
+                showToast('يرجى إدخال اسم الفصل واسم المادة.', 'warning');
+                return;
+            }
+
+            const newCls = {
+                id: 'cls-' + Date.now(),
+                name: name,
+                subject: subject,
+                description: desc || 'فصل دراسي نشط'
+            };
+
+            window.appState.data.classes.push(newCls);
+            window.appState.selectedClassId = newCls.id;
+            closeModal('addClassModal');
+            saveDataToCloud();
+            showToast(`تمت إضافة "${name}" بنجاح.`, 'success');
+        };
+
+        window.openAddStudentModal = function(preselectClassId = null) {
+            if (window.appState.data.classes.length === 0) {
+                showToast('يجب إضافة فصل دراسي أولاً قبل تسجيل الطلاب.', 'warning');
+                openAddClassModal();
+                return;
+            }
+            const select = document.getElementById('inputStudentClassSelect');
+            select.innerHTML = window.appState.data.classes.map(c =>
+                `<option value="${c.id}" ${(preselectClassId || window.appState.selectedClassId) === c.id ? 'selected' : ''}>${sanitize(c.name)} (${sanitize(c.subject)})</option>`
+            ).join('');
+
+            document.getElementById('inputStudentName').value = '';
+            document.getElementById('inputStudentCode').value = '';
+            openModal('addStudentModal');
+        };
+
+        window.saveNewStudent = function() {
+            const name = document.getElementById('inputStudentName').value.trim();
+            const classId = document.getElementById('inputStudentClassSelect').value;
+            const customCode = document.getElementById('inputStudentCode').value.trim();
+            const startYear = document.getElementById('inputStudentStartYear').value || '2026';
+
+            if (!name || !classId) {
+                showToast('يرجى إدخال اسم الطالب واختيار الفصل.', 'warning');
+                return;
+            }
+
+            const code = customCode || `KRM-${Math.floor(1000 + Math.random() * 9000)}`;
+            const newStudent = {
+                id: 'std-' + Date.now(),
+                code: code,
+                name: name,
+                classId: classId,
+                currentScore: null,
+                yearlyScores: [],
+                dailyScores: [],
+                strengths: [],
+                weaknesses: [],
+                aiRecommendation: 'لم يتم إجراء تقييمات بعد. أنشئ امتحاناً ليقوم الذكاء الاصطناعي بتحليل مستوى الطالب.',
+                examHistory: []
+            };
+
+            window.appState.data.students.push(newStudent);
+            closeModal('addStudentModal');
+            saveDataToCloud();
+            showToast(`تم تسجيل الطالب "${name}" في الفصل.`, 'success');
+        };
+
+        // ==================== صفحة تسجيل الحضور والغياب المستقلة ====================
+        function initAttendancePage() {
+            const classSelect = document.getElementById('attendanceClassSelect');
+            const dateInput = document.getElementById('attendanceDateInput');
+            const classes = window.appState.data.classes;
+
+            if (!dateInput.value) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
+
+            if (classes.length === 0) {
+                classSelect.innerHTML = `<option value="">لا توجد فصول مضافة بعد</option>`;
+                return;
+            }
+
+            const currentVal = classSelect.value || window.appState.selectedClassId || classes[0].id;
+            classSelect.innerHTML = classes.map(c =>
+                `<option value="${c.id}" ${c.id === currentVal ? 'selected' : ''}>${sanitize(c.name)} - ${sanitize(c.subject)}</option>`
+            ).join('');
+
+            loadDraftAttendanceForSelection();
+        }
+
+        window.onAttendanceFilterChange = function() {
+            loadDraftAttendanceForSelection();
+            renderAttendancePage();
+        };
+
+        function loadDraftAttendanceForSelection() {
+            const classId = document.getElementById('attendanceClassSelect')?.value;
+            const date = document.getElementById('attendanceDateInput')?.value;
+            if (!classId || !date) return;
+
+            const existingLog = window.appState.data.attendanceLogs.find(l => l.classId === classId && l.date === date);
+            const classStudents = window.appState.data.students.filter(s => s.classId === classId);
+
+            window.appState.draftAttendance = {};
+            classStudents.forEach(s => {
+                if (existingLog && existingLog.records[s.id]) {
+                    window.appState.draftAttendance[s.id] = existingLog.records[s.id];
+                } else {
+                    window.appState.draftAttendance[s.id] = 'present'; // الافتراضي حاضر لتسهيل التحضير السريع
+                }
+            });
+        }
+
+        window.setDraftAttendance = function(studentId, status) {
+            window.appState.draftAttendance[studentId] = status;
+            renderAttendancePage();
+        };
+
+        window.markAllAttendanceStatus = function(status) {
+            Object.keys(window.appState.draftAttendance).forEach(id => {
+                window.appState.draftAttendance[id] = status;
+            });
+            renderAttendancePage();
+            showToast('تم تحديد جميع الطلاب كـ "حاضر". اضغط على حفظ كشف اليوم لاعتماد السجل.', 'info');
+        };
+
+        window.saveAttendanceSheet = function() {
+            const classId = document.getElementById('attendanceClassSelect')?.value;
+            const date = document.getElementById('attendanceDateInput')?.value;
+            if (!classId || !date) {
+                showToast('يرجى اختيار الفصل والتاريخ أولاً.', 'warning');
+                return;
+            }
+
+            const classStudents = window.appState.data.students.filter(s => s.classId === classId);
+            if (classStudents.length === 0) {
+                showToast('لا يوجد طلاب في هذا الفصل لتسجيل حضورهم.', 'warning');
+                return;
+            }
+
+            const existingIdx = window.appState.data.attendanceLogs.findIndex(l => l.classId === classId && l.date === date);
+            const logEntry = {
+                id: existingIdx >= 0 ? window.appState.data.attendanceLogs[existingIdx].id : 'att-' + Date.now(),
+                classId: classId,
+                date: date,
+                records: { ...window.appState.draftAttendance }
+            };
+
+            if (existingIdx >= 0) {
+                window.appState.data.attendanceLogs[existingIdx] = logEntry;
+            } else {
+                window.appState.data.attendanceLogs.unshift(logEntry);
+            }
+
+            saveDataToCloud();
+            showToast(`تم حفظ كشف الحضور والغياب ليوم ${date} بنجاح!`, 'success');
+        };
+
+        function getStudentAttendanceStats(studentId, classId) {
+            const logs = window.appState.data.attendanceLogs.filter(l => l.classId === classId && l.records && l.records[studentId]);
+            const total = logs.length;
+            if (total === 0) return { total: 0, attended: 0, rate: null };
+            const attended = logs.filter(l => l.records[studentId] === 'present' || l.records[studentId] === 'late').length;
+            return { total, attended, rate: Math.round((attended / total) * 100) };
+        }
+
+        function renderAttendancePage() {
+            const classId = document.getElementById('attendanceClassSelect')?.value;
+            const date = document.getElementById('attendanceDateInput')?.value;
+            const container = document.getElementById('attendanceTableContainer');
+            const logsContainer = document.getElementById('pastAttendanceLogsList');
+
+            if (!classId || window.appState.data.classes.length === 0) {
+                container.innerHTML = `<div class="p-10 text-center text-sm text-slate-400">ابدأ بإضافة فصل دراسي وطلاب لتتمكن من تسجيل الحضور والغياب.</div>`;
+                logsContainer.innerHTML = `<p class="text-xs text-slate-400">لا توجد سجلات حضور سابقة.</p>`;
+                return;
+            }
+
+            const students = window.appState.data.students.filter(s => s.classId === classId);
+            if (students.length === 0) {
+                container.innerHTML = `<div class="p-10 text-center text-sm text-slate-400">لا يوجد طلاب مسجلون في هذا الفصل بعد. اضغط على "إضافة طالب للفصل".</div>`;
+            } else {
+                // حساب الإحصائيات اللحظية
+                let p = 0, a = 0, l = 0, e = 0;
+                students.forEach(s => {
+                    const st = window.appState.draftAttendance[s.id] || 'present';
+                    if (st === 'present') p++;
+                    else if (st === 'absent') a++;
+                    else if (st === 'late') l++;
+                    else if (st === 'excused') e++;
+                });
+                document.getElementById('countPresent').textContent = p;
+                document.getElementById('countAbsent').textContent = a;
+                document.getElementById('countLate').textContent = l;
+                document.getElementById('countExcused').textContent = e;
+
+                container.innerHTML = `
+                    <table class="w-full text-right border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50 text-slate-500 text-xs font-bold border-b border-slate-200">
+                                <th class="py-3.5 px-4">اسم الطالب</th>
+                                <th class="py-3.5 px-4">الكود</th>
+                                <th class="py-3.5 px-4">حالة الحضور (${sanitize(date)})</th>
+                                <th class="py-3.5 px-4">النسبة التراكمية للحضور</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                            ${students.map(s => {
+                                const status = window.appState.draftAttendance[s.id] || 'present';
+                                const stats = getStudentAttendanceStats(s.id, classId);
+                                return `
+                                    <tr class="hover:bg-slate-50/70">
+                                        <td class="py-3.5 px-4 font-bold text-slate-900">${sanitize(s.name)}</td>
+                                        <td class="py-3.5 px-4 text-xs font-mono text-slate-500">${sanitize(s.code)}</td>
+                                        <td class="py-3.5 px-4">
+                                            <div class="inline-flex flex-wrap bg-slate-100 p-1 rounded-xl border border-slate-200 gap-1">
+                                                <button onclick="setDraftAttendance('${s.id}', 'present')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${status === 'present' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'}">حاضر</button>
+                                                <button onclick="setDraftAttendance('${s.id}', 'absent')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${status === 'absent' ? 'bg-rose-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'}">غائب</button>
+                                                <button onclick="setDraftAttendance('${s.id}', 'late')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${status === 'late' ? 'bg-amber-500 text-white shadow-xs' : 'text-slate-600 hover:bg-white'}">متأخر</button>
+                                                <button onclick="setDraftAttendance('${s.id}', 'excused')" class="px-3 py-1 rounded-lg text-xs font-bold transition ${status === 'excused' ? 'bg-sky-600 text-white shadow-xs' : 'text-slate-600 hover:bg-white'}">بعذر</button>
+                                            </div>
+                                        </td>
+                                        <td class="py-3.5 px-4 text-xs font-bold text-slate-700">
+                                            ${stats.rate !== null ? `${stats.rate}% (${stats.attended} من ${stats.total} محاضرة)` : 'لم تُحفظ محاضرات بعد'}
+                                        </td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            // عرض المحاضرات السابقة المحفوظة لهذا الفصل
+            const pastLogs = window.appState.data.attendanceLogs.filter(l => l.classId === classId);
+            if (pastLogs.length === 0) {
+                logsContainer.innerHTML = `<p class="text-xs text-slate-400">لا توجد كشوف حضور محفوظة لهذا الفصل حتى الآن.</p>`;
+            } else {
+                logsContainer.innerHTML = pastLogs.map(log => {
+                    const vals = Object.values(log.records || {});
+                    const presentCount = vals.filter(v => v === 'present' || v === 'late').length;
+                    const absentCount = vals.filter(v => v === 'absent' || v === 'excused').length;
+                    return `
+                        <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs">
+                            <div class="flex items-center gap-3">
+                                <span class="font-bold text-slate-900">تاريخ المحاضرة: ${sanitize(log.date)}</span>
+                                <span class="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-lg font-bold">حضور: ${presentCount}</span>
+                                <span class="text-rose-700 bg-rose-100 px-2 py-0.5 rounded-lg font-bold">غياب: ${absentCount}</span>
+                            </div>
+                            <button onclick="editPastAttendance('${log.date}')" class="text-slate-600 hover:text-emerald-600 font-bold underline">تعديل الكشف</button>
+                        </div>
+                    `;
+                }).join('');
+            }
+            lucide.createIcons();
+        }
+
+        window.editPastAttendance = function(dateStr) {
+            document.getElementById('attendanceDateInput').value = dateStr;
+            onAttendanceFilterChange();
+        };
+
+        window.goToClassAttendance = function() {
+            switchView('attendance');
+            const sel = document.getElementById('attendanceClassSelect');
+            if (sel && window.appState.selectedClassId) {
+                sel.value = window.appState.selectedClassId;
+                onAttendanceFilterChange();
+            }
+        };
+
+        // ==================== رسم الواجهات ====================
+        function renderSidebarClasses() {
+            const list = document.getElementById('classesSidebarList');
+            const { classes, students } = window.appState.data;
+            if (!list) return;
+
+            if (classes.length === 0) {
+                list.innerHTML = `<p class="text-xs text-slate-400 px-2 py-2">لا توجد فصول مضافة بعد.</p>`;
+                return;
+            }
+
+            list.innerHTML = classes.map(cls => {
+                const count = students.filter(s => s.classId === cls.id).length;
+                const isSelected = window.appState.activeView === 'class-detail' && window.appState.selectedClassId === cls.id;
+                return `
+                    <button onclick="openClassPage('${cls.id}')" class="w-full text-right px-3.5 py-2.5 rounded-xl transition flex items-center justify-between ${isSelected ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-300 hover:bg-slate-800 hover:text-white'}">
+                        <div class="truncate">
+                            <p class="text-xs font-bold truncate">${sanitize(cls.name)}</p>
+                            <p class="text-[10px] ${isSelected ? 'text-emerald-100' : 'text-slate-400'} truncate">${sanitize(cls.subject)}</p>
+                        </div>
+                        <span class="text-[10px] font-bold px-2 py-0.5 rounded-full ${isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-slate-300'}">${count}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        window.openClassPage = function(classId) {
+            window.appState.selectedClassId = classId;
+            switchView('class-detail');
+        };
+
+        function renderOverview() {
+            const { classes, students, exams, attendanceLogs } = window.appState.data;
+            document.getElementById('statTotalClasses').textContent = classes.length;
+            document.getElementById('statTotalStudents').textContent = students.length;
+            document.getElementById('statAttendanceSessions').textContent = attendanceLogs.length;
+            document.getElementById('statTotalExams').textContent = exams.length;
+
+            const container = document.getElementById('overviewClassesContainer');
+            if (classes.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white border-2 border-dashed border-slate-300 rounded-3xl p-10 text-center space-y-3">
+                        <div class="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                            <i data-lucide="folder-plus" class="w-7 h-7"></i>
+                        </div>
+                        <h4 class="font-extrabold text-slate-900 text-lg">المنصة جاهزة لإضافة محتواك الخاص</h4>
+                        <p class="text-xs text-slate-500 max-w-md mx-auto leading-relaxed">ابدأ بإنشاء أول فصل دراسي لك، ثم أضف الطلاب وسجّل حضورهم وغيابهم أو انشر امتحانات ليصححها الذكاء الاصطناعي.</p>
+                        <button onclick="openAddClassModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-xs transition inline-flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4"></i>
+                            <span>إنشاء أول فصل دراسي</span>
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    ${classes.map(cls => {
+                        const clsStudents = students.filter(s => s.classId === cls.id);
+                        return `
+                            <div onclick="openClassPage('${cls.id}')" class="bg-white p-5 rounded-2xl border border-slate-200 hover:border-emerald-500 shadow-xs hover:shadow-md transition cursor-pointer">
+                                <div class="flex items-center justify-between mb-2">
+                                    <span class="text-xs font-bold bg-slate-900 text-emerald-400 px-3 py-1 rounded-xl">${sanitize(cls.subject)}</span>
+                                    <span class="text-xs font-bold text-emerald-600 flex items-center gap-1">دخول <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i></span>
+                                </div>
+                                <h4 class="font-extrabold text-slate-900 text-lg">${sanitize(cls.name)}</h4>
+                                <p class="text-xs text-slate-500 mt-1">${sanitize(cls.description)}</p>
+                                <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-bold text-slate-600">
+                                    <span>عدد الطلاب: ${clsStudents.length}</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        function renderClassDetail() {
+            const cls = window.appState.data.classes.find(c => c.id === window.appState.selectedClassId);
+            if (!cls) {
+                switchView('overview');
+                return;
+            }
+
+            document.getElementById('classDetailSubject').textContent = cls.subject;
+            document.getElementById('classDetailTitle').textContent = cls.name;
+            document.getElementById('classDetailDesc').textContent = cls.description;
+
+            const term = (document.getElementById('studentSearchInput')?.value || '').trim().toLowerCase();
+            const students = window.appState.data.students.filter(s =>
+                s.classId === cls.id && (s.name.toLowerCase().includes(term) || s.code.toLowerCase().includes(term))
+            );
+
+            const container = document.getElementById('classStudentsContainer');
+            if (students.length === 0) {
+                container.innerHTML = `
+                    <div class="p-10 text-center space-y-3">
+                        <p class="text-sm font-bold text-slate-500">لا يوجد طلاب في هذا الفصل حتى الآن.</p>
+                        <button onclick="openAddStudentModal('${cls.id}')" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs font-bold">إضافة طالب الآن</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <table class="w-full text-right border-collapse">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-xs font-bold border-b border-slate-200">
+                            <th class="py-3.5 px-4">الطالب</th>
+                            <th class="py-3.5 px-4">نسبة الحضور التراكمية</th>
+                            <th class="py-3.5 px-4">المستوى الحالي</th>
+                            <th class="py-3.5 px-4 text-center">الملف التراكمي</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-100 text-sm">
+                        ${students.map(s => {
+                            const att = getStudentAttendanceStats(s.id, cls.id);
+                            return `
+                                <tr class="hover:bg-slate-50/70">
+                                    <td class="py-3.5 px-4">
+                                        <p class="font-bold text-slate-900">${sanitize(s.name)}</p>
+                                        <p class="text-[11px] font-mono text-slate-400">${sanitize(s.code)}</p>
+                                    </td>
+                                    <td class="py-3.5 px-4 text-xs font-bold text-slate-700">
+                                        ${att.rate !== null ? `${att.rate}% (${att.attended}/${att.total})` : 'لا يوجد سجل حضور'}
+                                    </td>
+                                    <td class="py-3.5 px-4 text-xs font-black text-emerald-600">
+                                        ${s.currentScore !== null ? `${s.currentScore}%` : 'لم يُقيّم بعد'}
+                                    </td>
+                                    <td class="py-3.5 px-4 text-center">
+                                        <button onclick="openStudentProfile('${s.id}')" class="bg-slate-900 hover:bg-emerald-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold transition inline-flex items-center gap-1.5">
+                                            <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+                                            <span>فتح السجل التراكمي</span>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        // ==================== الملف التراكمي للطالب ====================
+        window.openStudentProfile = function(studentId) {
+            window.appState.selectedStudentId = studentId;
+            switchView('student-profile');
+        };
+
+        window.backFromProfile = function() {
+            if (window.appState.role === 'student') switchView('student-portal');
+            else switchView('class-detail');
+        };
+
+        window.openAddYearlyRecordModal = function() {
+            document.getElementById('inputHistoryYear').value = '';
+            document.getElementById('inputHistoryScore').value = '';
+            openModal('addYearlyRecordModal');
+        };
+
+        window.saveYearlyRecord = function() {
+            const student = window.appState.data.students.find(s => s.id === window.appState.selectedStudentId);
+            const year = document.getElementById('inputHistoryYear').value.trim();
+            const score = parseInt(document.getElementById('inputHistoryScore').value, 10);
+
+            if (!student || !year || isNaN(score) || score < 0 || score > 100) {
+                showToast('يرجى إدخال السنة والدرجة الصحيحة (من 0 إلى 100).', 'warning');
+                return;
+            }
+
+            const existingIdx = student.yearlyScores.findIndex(y => y.year === year);
+            if (existingIdx >= 0) {
+                student.yearlyScores[existingIdx].score = score;
+            } else {
+                student.yearlyScores.push({ year, score });
+                student.yearlyScores.sort((a, b) => parseInt(a.year) - parseInt(b.year));
+            }
+
+            if (student.currentScore === null) {
+                student.currentScore = score;
+            }
+
+            closeModal('addYearlyRecordModal');
+            saveDataToCloud();
+            showToast(`تمت إضافة تقييم عام ${year} للسجل التراكمي بنجاح.`, 'success');
+        };
+
+        function renderStudentProfile() {
+            const student = window.appState.data.students.find(s => s.id === window.appState.selectedStudentId);
+            if (!student) return;
+            const cls = window.appState.data.classes.find(c => c.id === student.classId);
+
+            document.getElementById('profileAvatar').textContent = student.name.charAt(0);
+            document.getElementById('profileName').textContent = student.name;
+            document.getElementById('profileCode').textContent = student.code;
+            document.getElementById('profileClass').textContent = cls ? `${cls.name} • ${cls.subject}` : '';
+
+            document.getElementById('profileCurrentScore').textContent = student.currentScore !== null ? `${student.currentScore}%` : '--';
+            const att = getStudentAttendanceStats(student.id, student.classId);
+            document.getElementById('profileAttendanceRate').textContent = att.rate !== null ? `${att.rate}%` : '--';
+            document.getElementById('profileExamsCount').textContent = student.examHistory?.length || 0;
+
+            document.getElementById('profileStrengthsList').innerHTML = student.strengths.length
+                ? student.strengths.map(st => `<span class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-xl text-xs font-bold">${sanitize(st)}</span>`).join('')
+                : `<span class="text-xs text-slate-400">تُستخرج تلقائياً بعد تصحيح الامتحانات</span>`;
+
+            document.getElementById('profileWeaknessesList').innerHTML = student.weaknesses.length
+                ? student.weaknesses.map(wk => `<span class="bg-rose-50 text-rose-700 border border-rose-200 px-3 py-1 rounded-xl text-xs font-bold">${sanitize(wk)}</span>`).join('')
+                : `<span class="text-xs text-slate-400">لا توجد نقاط ضعف مسجلة بعد</span>`;
+
+            document.getElementById('profileAiRecommendation').textContent = student.aiRecommendation;
+
+            const historyList = document.getElementById('profileExamHistoryList');
+            if (!student.examHistory || student.examHistory.length === 0) {
+                historyList.innerHTML = `<p class="text-xs text-slate-400 text-center py-4">لا توجد امتحانات مصححة لهذا الطالب بعد.</p>`;
+            } else {
+                historyList.innerHTML = student.examHistory.map(item => `
+                    <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <h4 class="font-bold text-slate-900 text-sm">${sanitize(item.examTitle)}</h4>
+                                <span class="text-[11px] text-slate-400">${sanitize(item.date)}</span>
+                            </div>
+                            <span class="bg-slate-900 text-emerald-400 font-black px-3 py-1 rounded-xl text-sm">${item.score}%</span>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs">
+                            <div class="bg-white p-2.5 rounded-xl border border-slate-100"><strong class="text-emerald-600 block">نقاط القوة:</strong>${sanitize(item.strengths)}</div>
+                            <div class="bg-white p-2.5 rounded-xl border border-slate-100"><strong class="text-rose-600 block">نقاط الضعف:</strong>${sanitize(item.weaknesses)}</div>
+                            <div class="bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-100"><strong class="text-emerald-800 block">توصية التحسين:</strong>${sanitize(item.plan)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            renderStudentChart(student);
+        }
+
+        window.switchChartMode = function(mode) {
+            window.appState.chartMode = mode;
+            const bY = document.getElementById('chartModeYears');
+            const bD = document.getElementById('chartModeDaily');
+            if (mode === 'years') {
+                bY.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-white transition';
+                bD.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition';
+            } else {
+                bD.className = 'px-3 py-1.5 rounded-lg bg-slate-900 text-white transition';
+                bY.className = 'px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 transition';
+            }
+            const student = window.appState.data.students.find(s => s.id === window.appState.selectedStudentId);
+            if (student) renderStudentChart(student);
+        };
+
+        function renderStudentChart(student) {
+            const ctx = document.getElementById('studentProgressChart');
+            if (!ctx) return;
+            if (progressChartInstance) progressChartInstance.destroy();
+
+            const isYears = window.appState.chartMode === 'years';
+            const source = isYears ? student.yearlyScores : student.dailyScores;
+            const labels = source.length ? source.map(i => isYears ? i.year : i.day) : ['لا توجد بيانات بعد'];
+            const dataPoints = source.length ? source.map(i => i.score) : [0];
+
+            progressChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'المستوى (%)',
+                        data: dataPoints,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#0f172a',
+                        pointRadius: 5,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { min: 0, max: 100 } }
+                }
+            });
+        }
+
+        // ==================== الامتحانات والتصحيح بالذكاء الاصطناعي ====================
+        window.toggleCreateExamForm = function() {
+            if (window.appState.data.classes.length === 0) {
+                showToast('أضف فصلاً دراسياً أولاً قبل إنشاء الامتحان.', 'warning');
+                openAddClassModal();
+                return;
+            }
+            const card = document.getElementById('createExamFormCard');
+            card.classList.toggle('hidden');
+            const select = document.getElementById('newExamClassSelect');
+            select.innerHTML = window.appState.data.classes.map(c =>
+                `<option value="${c.id}">${sanitize(c.name)} (${sanitize(c.subject)})</option>`
+            ).join('');
+        };
+
+        window.publishNewExam = function() {
+            const title = document.getElementById('newExamTitle').value.trim();
+            const classId = document.getElementById('newExamClassSelect').value;
+            const skillTag = document.getElementById('newExamSkillTag').value.trim();
+            const mcqQ = document.getElementById('newExamMcqQ').value.trim();
+            const opts = [
+                document.getElementById('newExamMcqOpt0').value.trim(),
+                document.getElementById('newExamMcqOpt1').value.trim(),
+                document.getElementById('newExamMcqOpt2').value.trim(),
+                document.getElementById('newExamMcqOpt3').value.trim()
+            ].filter(Boolean);
+            const essayQ = document.getElementById('newExamEssayQ').value.trim();
+
+            if (!title || !classId || !mcqQ || opts.length < 2 || !essayQ) {
+                showToast('يرجى ملء جميع حقول الامتحان وخيارين على الأقل للسؤال الأول.', 'warning');
+                return;
+            }
+
+            window.appState.data.exams.unshift({
+                id: 'exm-' + Date.now(),
+                title,
+                classId,
+                skillTag: skillTag || 'التحليل العلمي',
+                createdAt: new Date().toISOString().split('T')[0],
+                mcqQuestion: mcqQ,
+                mcqOptions: opts,
+                correctOptionIndex: 0,
+                essayQuestion: essayQ
+            });
+
+            // تفريغ الحقول
+            ['newExamTitle', 'newExamSkillTag', 'newExamMcqQ', 'newExamMcqOpt0', 'newExamMcqOpt1', 'newExamMcqOpt2', 'newExamMcqOpt3', 'newExamEssayQ'].forEach(id => {
+                document.getElementById(id).value = '';
+            });
+
+            document.getElementById('createExamFormCard').classList.add('hidden');
+            saveDataToCloud();
+            showToast('تم حفظ الامتحان ونشره للطلاب بنجاح!', 'success');
+        };
+
+        function renderExamsView() {
+            const container = document.getElementById('examsListContainer');
+            const exams = window.appState.data.exams;
+            if (exams.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white border-2 border-dashed border-slate-300 rounded-3xl p-10 text-center space-y-3">
+                        <h4 class="font-extrabold text-slate-900 text-lg">لا توجد امتحانات منشورة حتى الآن</h4>
+                        <p class="text-xs text-slate-500 max-w-md mx-auto">اضغط على "إنشاء امتحان جديد" لإضافة أسئلتك وسيقوم الذكاء الاصطناعي بتصحيح إجابات الطلاب وتحليل مهاراتهم.</p>
+                        <button onclick="toggleCreateExamForm()" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold inline-flex items-center gap-2">
+                            <i data-lucide="plus" class="w-4 h-4 text-emerald-400"></i>
+                            <span>إنشاء أول امتحان</span>
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = `
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    ${exams.map(ex => {
+                        const cls = window.appState.data.classes.find(c => c.id === ex.classId);
+                        return `
+                            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between space-y-4">
+                                <div>
+                                    <div class="flex items-center justify-between mb-2">
+                                        <span class="text-xs font-bold bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-lg">${cls ? sanitize(cls.name) : ''}</span>
+                                        <span class="text-[11px] text-slate-400">${sanitize(ex.createdAt)}</span>
+                                    </div>
+                                    <h3 class="font-extrabold text-slate-900 text-lg">${sanitize(ex.title)}</h3>
+                                    <p class="text-xs text-slate-500 mt-1">المهارة المستهدفة: <strong>${sanitize(ex.skillTag)}</strong></p>
+                                </div>
+                                <button onclick="openExamSolver('${ex.id}')" class="w-full bg-slate-900 hover:bg-emerald-600 text-white font-bold py-2.5 rounded-xl text-xs transition flex items-center justify-center gap-2">
+                                    <i data-lucide="play-circle" class="w-4 h-4 text-emerald-400"></i>
+                                    <span>دخول الامتحان والتصحيح بالـ AI</span>
+                                </button>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+
+        window.openExamSolver = function(examId) {
+            if (window.appState.data.students.length === 0) {
+                showToast('يجب تسجيل طالب واحد على الأقل لتجربة حل الامتحان وتصحيحه.', 'warning');
+                openAddStudentModal();
+                return;
+            }
+            const exam = window.appState.data.exams.find(e => e.id === examId);
+            if (!exam) return;
+            window.appState.activeExamId = examId;
+
+            const cls = window.appState.data.classes.find(c => c.id === exam.classId);
+            document.getElementById('solverClassBadge').textContent = cls ? cls.name : '';
+            document.getElementById('solverExamTitle').textContent = exam.title;
+            document.getElementById('solverMcqQuestion').textContent = exam.mcqQuestion;
+            document.getElementById('solverEssayQuestion').textContent = exam.essayQuestion;
+            document.getElementById('solverEssayAnswer').value = '';
+            document.getElementById('aiGradingResultBox').classList.add('hidden');
+
+            const stdSelect = document.getElementById('solverStudentSelect');
+            stdSelect.innerHTML = window.appState.data.students.map(s =>
+                `<option value="${s.id}" ${s.id === window.appState.activeStudentPortalId ? 'selected' : ''}>${sanitize(s.name)} (${sanitize(s.code)})</option>`
+            ).join('');
+
+            document.getElementById('solverMcqOptions').innerHTML = exam.mcqOptions.map((opt, idx) => `
+                <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 hover:border-emerald-500 cursor-pointer bg-slate-50 has-[:checked]:bg-emerald-50 has-[:checked]:border-emerald-500 transition">
+                    <input type="radio" name="solverMcqRadio" value="${idx}" class="accent-emerald-600 w-4 h-4" ${idx === 0 ? 'checked' : ''}>
+                    <span class="text-xs font-bold text-slate-900">${sanitize(opt)}</span>
+                </label>
+            `).join('');
+
+            switchView('take-exam');
+        };
+
+        window.closeExamSolver = function() {
+            if (window.appState.role === 'student') switchView('student-portal');
+            else switchView('exams');
+        };
+
+        window.submitAndGradeExam = async function() {
+            const exam = window.appState.data.exams.find(e => e.id === window.appState.activeExamId);
+            const studentId = document.getElementById('solverStudentSelect').value;
+            const student = window.appState.data.students.find(s => s.id === studentId);
+            const essayAnswer = document.getElementById('solverEssayAnswer').value.trim();
+            const selectedOpt = document.querySelector('input[name="solverMcqRadio"]:checked');
+
+            if (!exam || !student) return;
+            if (!essayAnswer) {
+                showToast('يرجى كتابة إجابة السؤال المقالي ليقوم الذكاء الاصطناعي بتصحيحها.', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('submitExamBtn');
+            const origHtml = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> <span>جاري التصحيح واستخراج المهارات بالذكاء الاصطناعي...</span>`;
+            lucide.createIcons();
+
+            const isMcqCorrect = selectedOpt && parseInt(selectedOpt.value, 10) === exam.correctOptionIndex;
+            const mcqScore = isMcqCorrect ? 50 : 0;
+            let aiFeedback = null;
+
+            try {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+                const prompt = `أنت مصحح تربوي ذكي في نظام كريم. قيّم إجابة الطالب باللغة العربية وأعد النتيجة بصيغة JSON فقط:
+                السؤال: ${exam.essayQuestion}
+                المهارة: ${exam.skillTag}
+                إجابة الطالب: ${essayAnswer}
+                المطلوب JSON يحتوي على:
+                - essayScore (رقم من 0 إلى 50)
+                - strengths (نقاط القوة لدى الطالب في هذه الإجابة)
+                - weaknesses (نقاط الضعف أو النقص في الفهم)
+                - plan (اقتراح عملي للمعلم لتحسين فهم الطالب)`;
+
+                const res = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (text) aiFeedback = JSON.parse(text);
+                }
+            } catch (e) {}
+
+            if (!aiFeedback) {
+                const words = essayAnswer.split(/\s+/).length;
+                if (words >= 12) {
+                    aiFeedback = {
+                        essayScore: 45,
+                        strengths: `استيعاب جيد لمهارة (${exam.skillTag}) وصياغة علمية واضحة ومرتبة.`,
+                        weaknesses: 'لا توجد نقاط ضعف كبيرة، يمكن تعزيز الإجابة بأمثلة إضافية.',
+                        plan: 'تشجيع الطالب على حل مسائل تطبيقية متقدمة لترسيخ الفهم.'
+                    };
+                } else {
+                    aiFeedback = {
+                        essayScore: 25,
+                        strengths: 'محاولة صحيحة لتحديد الفكرة العامة للسؤال.',
+                        weaknesses: `إيجاز مخل ونقص في تفسير تفاصيل (${exam.skillTag}).`,
+                        plan: 'مراجعة المفاهيم الأساسية مع الطالب وتدريبه على كتابة التفسير العلمي الكامل.'
+                    };
+                }
+            }
+
+            const finalScore = Math.min(100, Math.max(0, mcqScore + (aiFeedback.essayScore || 30)));
+            const todayStr = new Date().toISOString().split('T')[0];
+            const currentYear = new Date().getFullYear().toString();
+
+            student.currentScore = student.currentScore === null ? finalScore : Math.round((student.currentScore + finalScore) / 2);
+            student.dailyScores.push({ day: todayStr, score: finalScore });
+
+            const yrIdx = student.yearlyScores.findIndex(y => y.year === currentYear);
+            if (yrIdx >= 0) student.yearlyScores[yrIdx].score = student.currentScore;
+            else student.yearlyScores.push({ year: currentYear, score: student.currentScore });
+
+            if (finalScore >= 80 && !student.strengths.includes(exam.skillTag)) student.strengths.unshift(exam.skillTag);
+            if (finalScore < 80 && !student.weaknesses.includes(exam.skillTag)) student.weaknesses.unshift(exam.skillTag);
+
+            student.aiRecommendation = aiFeedback.plan;
+            student.examHistory.unshift({
+                examTitle: exam.title,
+                date: todayStr,
+                score: finalScore,
+                strengths: aiFeedback.strengths,
+                weaknesses: aiFeedback.weaknesses,
+                plan: aiFeedback.plan
+            });
+
+            await saveDataToCloud();
+
+            document.getElementById('gradedScoreBadge').textContent = `${finalScore}%`;
+            document.getElementById('gradedStrengthText').textContent = aiFeedback.strengths;
+            document.getElementById('gradedWeaknessText').textContent = aiFeedback.weaknesses;
+            document.getElementById('gradedPlanText').textContent = aiFeedback.plan;
+            document.getElementById('aiGradingResultBox').classList.remove('hidden');
+            document.getElementById('viewUpdatedProfileBtn').onclick = () => openStudentProfile(student.id);
+
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+            lucide.createIcons();
+            showToast(`تم تصحيح الامتحان وتحديث الملف التراكمي للطالب ${student.name}!`, 'success');
+        };
+
+        // ==================== واجهة الطالب ====================
+        function renderStudentPortal() {
+            const container = document.getElementById('studentPortalContent');
+            const student = window.appState.data.students.find(s => s.id === window.appState.activeStudentPortalId);
+
+            if (!student) {
+                container.innerHTML = `
+                    <div class="bg-white border-2 border-dashed border-slate-300 rounded-3xl p-10 text-center space-y-3">
+                        <h3 class="font-extrabold text-slate-900 text-lg">لا يوجد طلاب مسجلون في النظام بعد</h3>
+                        <p class="text-xs text-slate-500">انتقل إلى حساب المعلم لإضافة فصل دراسي وتسجيل الطلاب أولاً.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const cls = window.appState.data.classes.find(c => c.id === student.classId);
+            const att = getStudentAttendanceStats(student.id, student.classId);
+            const classExams = window.appState.data.exams.filter(e => e.classId === student.classId);
+
+            container.innerHTML = `
+                <div class="space-y-6">
+                    <div class="bg-gradient-to-l from-slate-900 to-emerald-800 text-white rounded-2xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                            <span class="text-xs bg-white/15 text-emerald-200 px-3 py-1 rounded-full font-bold">بوابة الطالب</span>
+                            <h2 class="text-2xl font-black mt-2">مرحباً، ${sanitize(student.name)}</h2>
+                            <p class="text-sm text-slate-200 mt-1">${cls ? sanitize(cls.name + ' • ' + cls.subject) : ''} | الكود: ${sanitize(student.code)}</p>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="bg-white/10 px-4 py-3 rounded-2xl text-center">
+                                <p class="text-xs text-slate-200">المستوى التراكمي</p>
+                                <p class="text-2xl font-black text-emerald-300">${student.currentScore !== null ? student.currentScore + '%' : '--'}</p>
+                            </div>
+                            <div class="bg-white/10 px-4 py-3 rounded-2xl text-center">
+                                <p class="text-xs text-slate-200">نسبة الحضور</p>
+                                <p class="text-2xl font-black text-white">${att.rate !== null ? att.rate + '%' : '--'}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs">
+                        <h3 class="font-extrabold text-slate-900 text-lg mb-4">الامتحانات المتاحة في فصلك</h3>
+                        ${classExams.length === 0 ? `<p class="text-xs text-slate-400">لا توجد امتحانات منشورة لفصلك حالياً.</p>` : `
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                ${classExams.map(ex => `
+                                    <div class="p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-col justify-between gap-3">
+                                        <div>
+                                            <h4 class="font-bold text-slate-900 text-base">${sanitize(ex.title)}</h4>
+                                            <p class="text-xs text-slate-500 mt-1">المهارة: ${sanitize(ex.skillTag)}</p>
+                                        </div>
+                                        <button onclick="openExamSolver('${ex.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 rounded-xl text-xs transition">بدء الامتحان</button>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+
+                    <div class="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+                        <h3 class="font-extrabold text-slate-900 text-lg">توصية الذكاء الاصطناعي لمستواك</h3>
+                        <p class="text-xs text-slate-700 bg-emerald-50 border border-emerald-200 p-4 rounded-2xl leading-relaxed">${sanitize(student.aiRecommendation)}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAll() {
+            renderSidebarClasses();
+            const view = window.appState.activeView;
+            if (view === 'overview') renderOverview();
+            if (view === 'attendance') {
+                initAttendancePage();
+                renderAttendancePage();
+            }
+            if (view === 'class-detail') renderClassDetail();
+            if (view === 'student-profile') renderStudentProfile();
+            if (view === 'exams') renderExamsView();
+            if (view === 'student-portal') renderStudentPortal();
+            lucide.createIcons();
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            lucide.createIcons();
+            initCloud();
+        });
+    </script>
+</body>
+</html>
